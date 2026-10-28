@@ -1,0 +1,144 @@
+import os
+import pandas as pd
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+
+CARPETA = os.path.expanduser("~/entrega_tarea3")
+CARPETA_GRAFICOS = os.path.join(CARPETA, "graficos")
+os.makedirs(CARPETA_GRAFICOS, exist_ok=True)
+
+# Estilo profesional
+plt.rcParams.update({
+    "figure.figsize": (12, 6),
+    "figure.dpi": 120,
+    "axes.titlesize": 16,
+    "axes.labelsize": 11,
+    "xtick.labelsize": 9,
+    "ytick.labelsize": 10,
+    "font.family": "sans-serif",
+    "axes.spines.top": False,
+    "axes.spines.right": False,
+    "axes.grid": True,
+    "grid.alpha": 0.22,
+    "grid.linestyle": "--",
+})
+
+archivo = os.path.join(CARPETA, "resumen_mensual.csv")
+df = pd.read_csv(archivo)
+
+# Detectar columnas sin depender de mayúsculas o tildes
+df.columns = [
+    str(c).strip().lower().replace(" ", "_")
+    for c in df.columns
+]
+
+print("Columnas encontradas:", list(df.columns))
+print(df.head())
+
+# Detectar columna temporal
+col_fecha = next(
+    (c for c in df.columns if "mes" in c or "fecha" in c),
+    None
+)
+
+if col_fecha is None:
+    raise ValueError(
+        "No se encontró la columna del mes o fecha. "
+        "Revisa las columnas mostradas arriba."
+    )
+
+df[col_fecha] = pd.to_datetime(
+    df[col_fecha], errors="coerce", dayfirst=True
+)
+df = df.dropna(subset=[col_fecha]).sort_values(col_fecha)
+
+# Detectar columnas numéricas
+for c in df.columns:
+    if c != col_fecha:
+        df[c] = pd.to_numeric(df[c], errors="coerce")
+
+def buscar_columna(palabras):
+    for c in df.columns:
+        if any(p in c for p in palabras):
+            return c
+    return None
+
+col_promedio = buscar_columna(["promedio", "media", "avg"])
+col_minimo = buscar_columna(["minimo", "mínimo", "min"])
+col_maximo = buscar_columna(["maximo", "máximo", "max"])
+col_cantidad = buscar_columna(["cantidad", "conteo", "count", "registros", "total"])
+
+def guardar(nombre):
+    plt.tight_layout()
+    plt.savefig(
+        os.path.join(CARPETA_GRAFICOS, nombre),
+        dpi=180,
+        bbox_inches="tight",
+        facecolor="white"
+    )
+    plt.close()
+    print("Gráfica guardada:", nombre)
+
+def configurar_fechas(ax):
+    ax.xaxis.set_major_locator(mdates.AutoDateLocator())
+    ax.xaxis.set_major_formatter(mdates.ConciseDateFormatter(ax.xaxis.get_major_locator()))
+    ax.set_xlabel("Mes")
+    ax.tick_params(axis="x", rotation=0)
+
+# Gráfica 1: promedio mensual
+if col_promedio:
+    fig, ax = plt.subplots()
+    ax.plot(
+        df[col_fecha], df[col_promedio],
+        color="#1769AA", linewidth=2.4,
+        marker="o", markersize=3.5,
+        label="Promedio mensual"
+    )
+    ax.set_title("Evolución mensual de la tasa de cambio", pad=16, weight="bold")
+    ax.set_ylabel("Valor promedio (COP)")
+    ax.legend(frameon=False)
+    configurar_fechas(ax)
+    guardar("promedio_mensual.png")
+else:
+    print("No se identificó la columna del promedio.")
+
+# Gráfica 2: cantidad de registros
+if col_cantidad:
+    fig, ax = plt.subplots()
+    ax.bar(
+        df[col_fecha], df[col_cantidad],
+        width=20, color="#269B83", alpha=0.9
+    )
+    ax.set_title("Cantidad de registros por mes", pad=16, weight="bold")
+    ax.set_ylabel("Número de registros")
+    configurar_fechas(ax)
+    guardar("registros_mensuales.png")
+else:
+    print("No se identificó la columna de cantidad de registros.")
+
+# Gráfica 3: mínimos y máximos
+if col_minimo and col_maximo:
+    fig, ax = plt.subplots()
+    ax.plot(
+        df[col_fecha], df[col_minimo],
+        color="#269B83", linewidth=2,
+        label="Valor mínimo"
+    )
+    ax.plot(
+        df[col_fecha], df[col_maximo],
+        color="#D97732", linewidth=2,
+        label="Valor máximo"
+    )
+    ax.fill_between(
+        df[col_fecha], df[col_minimo], df[col_maximo],
+        color="#9BB7C9", alpha=0.18
+    )
+    ax.set_title("Rango mensual de la tasa de cambio", pad=16, weight="bold")
+    ax.set_ylabel("Valor (COP)")
+    ax.legend(frameon=False)
+    configurar_fechas(ax)
+    guardar("minimos_maximos.png")
+else:
+    print("No se identificaron las columnas de mínimos y máximos.")
+
+print("Proceso de generación de gráficas finalizado.")

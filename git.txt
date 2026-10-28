@@ -1,0 +1,12 @@
+…o crear un nuevo repositorio en la línea de comandos
+echo "# Tarea3unad" >> README.md
+git init
+git add README.md
+git commit -m "first commit"
+git branch -M main
+git remote add origin https://github.com/programandounsue/Tarea3unad.git
+git push -u origin main
+…o bien, actualiza un repositorio existente desde la línea de comandos.
+git remote add origin https://github.com/programandounsue/Tarea3unad.git
+git branch -M main
+git push -u origin main
